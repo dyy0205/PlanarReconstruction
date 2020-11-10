@@ -59,6 +59,7 @@ def predict(_run, _log):
 
     with torch.no_grad():
         image = cv2.imread(cfg.image_path)
+        raw_h, raw_w, _ = image.shape
         # the network is trained with 192*256 and the intrinsic parameter is set as ScanNet
         image = cv2.resize(image, (w, h))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -102,7 +103,11 @@ def predict(_run, _log):
         per_pixel_depth = per_pixel_depth.cpu().numpy()[0, 0].reshape(h, w)
 
         # use per pixel depth for non planar region
+        depth_clean = depth * (predict_segmentation != 20) + 0 * (predict_segmentation == 20)
         depth = depth * (predict_segmentation != 20) + per_pixel_depth * (predict_segmentation == 20)
+        Image.fromarray(depth*1000).convert('I').resize((raw_w, raw_h)).save(cfg.image_path.replace('.jpg', '_depth.png'))
+        Image.fromarray(depth_clean*1000).convert('I').resize((raw_w, raw_h)).save(cfg.image_path.replace('.jpg', '_depth_clean.png'))
+        # np.save("510.npy", Image.fromarray(depth*1000).convert('I'))
 
         # change non planar to zero, so non planar region use the black color
         predict_segmentation += 1
@@ -124,8 +129,9 @@ def predict(_run, _log):
 
         image = np.concatenate((image, pred_seg, blend_pred, mask, depth), axis=1)
 
-        cv2.imshow('image', image)
-        cv2.waitKey(0)
+        cv2.imwrite(cfg.image_path.replace('.jpg', '_out.jpg'), image)
+        # cv2.imshow('image', image)
+        # cv2.waitKey(0)
 
 
 if __name__ == '__main__':
